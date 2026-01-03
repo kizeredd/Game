@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ready Set Cook - Web Prototype</title>
+<style>
+  body { margin:0; font-family: sans-serif; background:#f9f9f9; }
+  canvas { background:#eee; display:block; margin:0 auto; }
+  #info { text-align:center; margin:10px; }
+</style>
+</head>
+<body>
+<div id="info">Click to move the chef. Pick up items and deliver to stations!</div>
+<canvas id="game" width="800" height="600"></canvas>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// CHEF
+let chef = {x:100, y:100, size:40, color:"blue", held:null, speed:4};
+let target = {x:chef.x, y:chef.y};
+
+// ITEMS
+let items = [
+  {name:"tomato", x:50, y:450, size:30, color:"red"},
+  {name:"chicken", x:120, y:450, size:30, color:"brown", breaded:false},
+  {name:"fries", x:190, y:450, size:30, color:"yellow", cut:false},
+];
+
+// STATIONS
+let pan = {x:500, y:150, w:80, h:40, name:"Pan"};
+let fryer = {x:500, y:250, w:80, h:40, name:"Fryer"};
+let breader = {x:350, y:250, w:80, h:40, name:"Breader"};
+let cutter = {x:350, y:150, w:80, h:40, name:"Cutter"};
+
+canvas.addEventListener("click", e=>{
+  const rect = canvas.getBoundingClientRect();
+  target.x = e.clientX - rect.left;
+  target.y = e.clientY - rect.top;
+
+  // PICK UP ITEMS
+  if(!chef.held){
+    for(let item of items){
+      if(Math.abs(chef.x - item.x) < chef.size && Math.abs(chef.y - item.y) < chef.size){
+        chef.held = item;
+        break;
+      }
+    }
+  } else {
+    // DROP / USE ITEMS
+    let stationHit = (station) => 
+      chef.x + chef.size/2 > station.x &&
+      chef.x - chef.size/2 < station.x + station.w &&
+      chef.y + chef.size/2 > station.y &&
+      chef.y - chef.size/2 < station.y + station.h;
+
+    if(chef.held.name === "tomato" && stationHit(pan)){
+      chef.held = null;
+    } else if(chef.held.name === "chicken"){
+      if(!chef.held.breaded && stationHit(breader)) chef.held.breaded = true;
+      else if(chef.held.breaded && stationHit(fryer)) chef.held = null;
+    } else if(chef.held.name === "fries"){
+      if(!chef.held.cut && stationHit(cutter)) chef.held.cut = true;
+      else if(chef.held.cut && stationHit(fryer)) chef.held = null;
+    }
+  }
+});
+
+// GAME LOOP
+function loop(){
+  // MOVE CHEF
+  let dx = target.x - chef.x;
+  let dy = target.y - chef.y;
+  let dist = Math.hypot(dx, dy);
+  if(dist>chef.speed){
+    chef.x += dx/dist * chef.speed;
+    chef.y += dy/dist * chef.speed;
+  }
+
+  // DRAW
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Stations
+  [pan, fryer, breader, cutter].forEach(s=>{
+    ctx.fillStyle="gray";
+    ctx.fillRect(s.x,s.y,s.w,s.h);
+    ctx.fillStyle="black";
+    ctx.fillText(s.name, s.x+10,s.y+25);
+  });
+
+  // Items
+  items.forEach(i=>{
+    if(chef.held !== i) {
+      ctx.fillStyle=i.color;
+      ctx.fillRect(i.x,i.y,i.size,i.size);
+    }
+  });
+
+  // Chef
+  ctx.fillStyle=chef.color;
+  ctx.fillRect(chef.x-chef.size/2, chef.y-chef.size/2, chef.size, chef.size);
+
+  // Held item display
+  if(chef.held){
+    ctx.fillStyle = chef.held.color;
+    ctx.fillRect(chef.x-chef.size/2, chef.y-chef.size - chef.held.size, chef.held.size, chef.held.size);
+  }
+
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
